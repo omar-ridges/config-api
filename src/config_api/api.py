@@ -122,6 +122,79 @@ def validate_key_endpoint():
         }), 400
 
 
+@api_bp.route("/auth/key", methods=["DELETE"])
+@require_auth
+def deregister_key():
+    """Deregister (delete) an API key.
+
+    The API key to deregister is provided in the X-API-Key header.
+    
+    Returns:
+        JSON response with deregistration status.
+    """
+    key = request.headers.get('X-API-Key')
+    
+    key_manager = get_key_manager()
+    success = key_manager.deregister_key(key)
+    
+    if success:
+        return jsonify({
+            "status": "success",
+            "message": "API key deregistered successfully"
+        })
+    else:
+        return jsonify({
+            "status": "error",
+            "message": "Failed to deregister API key"
+        }), 400
+
+
+@api_bp.route("/auth/key/email", methods=["PUT"])
+@require_auth
+def update_key_email():
+    """Update the email address associated with an API key.
+
+    Expects JSON body with 'email' field.
+    The API key to update is provided in the X-API-Key header.
+    
+    Returns:
+        JSON response with update status.
+    """
+    data = request.get_json(silent=True)
+
+    if data is None:
+        return jsonify({
+            "status": "error",
+            "message": "Request body required"
+        }), 400
+
+    new_email = data.get("email")
+    if not new_email:
+        return jsonify({
+            "status": "error",
+            "message": "Email is required"
+        }), 400
+
+    key = request.headers.get('X-API-Key')
+    key_manager = get_key_manager()
+    
+    success = key_manager.update_email(key, new_email)
+    
+    if success:
+        return jsonify({
+            "status": "success",
+            "message": "Email address updated successfully",
+            "data": {
+                "email": new_email
+            }
+        })
+    else:
+        return jsonify({
+            "status": "error",
+            "message": "Failed to update email address"
+        }), 400
+
+
 @api_bp.route("/configs", methods=["GET"])
 @require_auth
 def list_configs():

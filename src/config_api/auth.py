@@ -171,6 +171,50 @@ class APIKeyManager:
                 
         return False
 
+    def deregister_key(self, key: str) -> bool:
+        """Deregister (delete) an API key.
+
+        Args:
+            key: API key to deregister.
+
+        Returns:
+            True if successfully deregistered, False if key not found.
+        """
+        if not key:
+            return False
+            
+        keys = self._load_keys()
+        
+        if key not in keys:
+            return False
+            
+        del keys[key]
+        self._save_keys(keys)
+        return True
+
+    def update_email(self, key: str, new_email: str) -> bool:
+        """Update the email address associated with an API key.
+
+        Args:
+            key: API key to update.
+            new_email: New email address to associate with the key.
+
+        Returns:
+            True if successfully updated, False if key not found.
+        """
+        if not key or not new_email:
+            return False
+            
+        keys = self._load_keys()
+        key_data = keys.get(key)
+        
+        if not key_data:
+            return False
+            
+        key_data["email"] = new_email
+        self._save_keys(keys)
+        return True
+
     def send_credit_card_form_email(self, email: str, api_key: str, validation_token: str) -> bool:
         """Send credit card form email to the user.
 

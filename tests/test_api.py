@@ -290,6 +290,121 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(data["status"], "success")
         self.assertEqual(data["message"], "API key validated successfully. Your key is now active and can be used to access the API.")
 
+    def test_deregister_key(self):
+        """Test deregistering an API key."""
+        # Create a new key for testing
+        response = self.client.post(
+            "/api/v1/auth/key",
+            data=json.dumps({"email": "deregister@example.com"}),
+            content_type="application/json"
+        )
+        data = json.loads(response.data)
+        key = data["data"]["key"]
+        
+        # Validate the key
+        from config_api.auth import APIKeyManager
+        key_manager = APIKeyManager(storage_path=self.key_temp_dir)
+        key_data = key_manager.get_key_data(key)
+        validation_token = key_data.get("validation_token")
+        self.client.get(f"/api/v1/auth/validate?token={validation_token}")
+        
+        # Deregister the key
+        response = self.client.delete(
+            "/api/v1/auth/key",
+            headers={"X-API-Key": key}
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.data)
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["message"], "API key deregistered successfully")
+        
+        # Try to use the deregistered key to access a protected endpoint
+        response = self.client.get("/api/v1/configs", headers={"X-API-Key": key})
+        self.assertEqual(response.status_code, 403)
+        
+        data = json.loads(response.data)
+        self.assertEqual(data["status"], "error")
+        self.assertEqual(data["message"], "Invalid API key")
+
+    def test_deregister_invalid_key(self):
+        """Test deregistering an invalid API key."""
+        response = self.client.delete(
+            "/api/v1/auth/key",
+            headers={"X-API-Key": "invalid-key-12345"}
+        )
+        # Invalid key should be rejected by @require_auth with 403
+        self.assertEqual(response.status_code, 403)
+        
+        data = json.loads(response.data)
+        self.assertEqual(data["status"], "error")
+        self.assertEqual(data["message"], "Invalid API key")
+
+    def test_update_key_email(self):
+        """Test updating the email address associated with an API key."""
+        # Create a new key for testing
+        response = self.client.post(
+            "/api/v1/auth/key",
+            data=json.dumps({"email": "old@example.com"}),
+            content_type="application/json"
+        )
+        data = json.loads(response.data)
+        key = data["data"]["key"]
+        
+        # Validate the key
+        from config_api.auth import APIKeyManager
+        key_manager = APIKeyManager(storage_path=self.key_temp_dir)
+        key_data = key_manager.get_key_data(key)
+        validation_token = key_data.get("validation_token")
+        self.client.get(f"/api/v1/auth/validate?token={validation_token}")
+        
+        # Update the email address
+        response = self.client.put(
+            "/api/v1/auth/key/email",
+            data=json.dumps({"email": "new@example.com"}),
+            content_type="application/json",
+            headers={"X-API-Key": key}
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.data)
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["message"], "Email address updated successfully")
+        self.assertEqual(data["data"]["email"], "new@example.com")
+        
+        # Verify the email was updated in the key data
+        updated_key_data = key_manager.get_key_data(key)
+        self.assertEqual(updated_key_data["email"], "new@example.com")
+
+    def test_update_key_email_missing_email(self):
+        """Test updating key email without providing email."""
+        response = self.client.put(
+            "/api/v1/auth/key/email",
+            data=json.dumps({}),
+            content_type="application/json",
+            headers=self._auth_headers()
+        )
+        self.assertEqual(response.status_code, 400)
+        
+        data = json.loads(response.data)
+        self.assertEqual(data["status"], "error")
+        self.assertEqual(data["message"], "Email is required")
+
+    def test_update_key_email_invalid_key(self):
+        """Test updating email for an invalid API key."""
+        response = self.client.put(
+            "/api/v1/auth/key/email",
+            data=json.dumps({"email": "new@example.com"}),
+            content_type="application/json",
+            headers={"X-API-Key": "invalid-key-12345"}
+        )
+        # Invalid key should be rejected by @require_auth with 403
+        self.assertEqual(response.status_code, 403)
+        
+        data = json.loads(response.data)
+        self.assertEqual(data["status"], "error")
+        self.assertEqual(data["message"], "Invalid API key")
+
 
 if __name__ == "__main__":
     unittest.main()
