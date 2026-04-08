@@ -32,3 +32,24 @@ class ConfigStorageError(ConfigAPIError):
 
     def __init__(self, message: str = "Configuration storage error"):
         super().__init__(message)
+
+
+class AuthenticationError(ConfigAPIError):
+    """Raised when authentication fails."""
+
+    def __init__(self, message: str = "Authentication failed"):
+        super().__init__(message)
+
+
+class InvalidAPIKeyError(AuthenticationError):
+    """Raised when an invalid API key is provided."""
+
+    def __init__(self, message: str = "Invalid API key"):
+        super().__init__(message)
+
+
+class KeyNotValidatedError(AuthenticationError):
+    """Raised when API key is valid but not validated (no credit card on file)."""
+
+    def __init__(self, message: str = "API key not validated - credit card required"):
+        super().__init__(message)
